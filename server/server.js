@@ -3,6 +3,7 @@
 // API Server
 // =========================================================
 
+const path = require("path");
 const http = require("http");
 const express = require("express");
 
@@ -21,6 +22,16 @@ const {
 
 
 const app = express();
+
+// =========================================================
+// Static Frontend
+// =========================================================
+
+app.use(
+    express.static(
+        path.join(__dirname, "..")
+    )
+);
 
 
 // =========================================================
