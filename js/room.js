@@ -5,320 +5,133 @@
 
 const Room = {
 
-    /* -----------------------------------------------------
-       Configuration
-    ----------------------------------------------------- */
-
     STORAGE_KEY: "netsvr_room",
 
-    ROOM_LENGTH: 5,
+    API_BASE: "/api/rooms",
 
-    EXPIRATION_HOURS: 24,
 
-    expirationTimer: null,
+    // =====================================================
+    // Create Room
+    // =====================================================
 
-
-    /* -----------------------------------------------------
-       Create Room
-    ----------------------------------------------------- */
-
-    create() {
-
-        const roomCode =
-            this.generateRoomCode();
-
-
-        const room = {
-
-            code: roomCode,
-
-            createdAt:
-                Date.now(),
-
-            expiresAt:
-                Date.now() +
-                (
-                    this.EXPIRATION_HOURS *
-                    60 *
-                    60 *
-                    1000
-                ),
-
-            text: "",
-
-            files: []
-
-        };
-
-
-        this.save(room);
-
-
-        this.startExpirationTimer(
-            room.expiresAt
-        );
-
-
-        if (
-            typeof UI !== "undefined"
-        ) {
-
-            UI.showRoom(
-                roomCode
-            );
-
-            UI.showToast(
-                "Room created!"
-            );
-
-        }
-
-    },
-
-
-    /* -----------------------------------------------------
-       Join Room
-    ----------------------------------------------------- */
-
-    join(code) {
-
-        const roomCode =
-            code.trim().toUpperCase();
-
-
-        if (
-            !this.isValidRoomCode(
-                roomCode
-            )
-        ) {
-
-            if (
-                typeof UI !== "undefined"
-            ) {
-
-                UI.showRoomError(
-                    "Invalid room code."
-                );
-
-            }
-
-            return;
-
-        }
-
-
-        /*
-         * Temporary local implementation.
-         *
-         * Later this will call the
-         * NetSvr backend/API.
-         */
-
-        const existingRoom =
-            this.getSavedRoom();
-
-
-        if (
-            existingRoom &&
-            existingRoom.code === roomCode
-        ) {
-
-            if (
-                this.isExpired(
-                    existingRoom
-                )
-            ) {
-
-                this.clear();
-
-                if (
-                    typeof UI !== "undefined"
-                ) {
-
-                    UI.showRoomError(
-                        "This room has expired."
-                    );
-
-                }
-
-                return;
-
-            }
-
-
-            this.startExpirationTimer(
-                existingRoom.expiresAt
-            );
-
-        } else {
-
-            /*
-             * Simulated remote room.
-             *
-             * This lets us test the UI before
-             * connecting the real backend.
-             */
-
-            const room = {
-
-                code: roomCode,
-
-                createdAt:
-                    Date.now(),
-
-                expiresAt:
-                    Date.now() +
-                    (
-                        this.EXPIRATION_HOURS *
-                        60 *
-                        60 *
-                        1000
-                    ),
-
-                text: "",
-
-                files: []
-
-            };
-
-
-            this.save(room);
-
-
-            this.startExpirationTimer(
-                room.expiresAt
-            );
-
-        }
-
-
-        if (
-            typeof UI !== "undefined"
-        ) {
-
-            UI.showRoom(
-                roomCode
-            );
-
-            UI.showToast(
-                `Joined room ${roomCode}`
-            );
-
-        }
-
-    },
-
-
-    /* -----------------------------------------------------
-       Generate Room Code
-    ----------------------------------------------------- */
-
-    generateRoomCode() {
-
-        const characters =
-            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-
-        let code = "";
-
-
-        for (
-            let i = 0;
-            i < this.ROOM_LENGTH;
-            i++
-        ) {
-
-            const index =
-                Math.floor(
-                    Math.random() *
-                    characters.length
-                );
-
-
-            code +=
-                characters[index];
-
-        }
-
-
-        return code;
-
-    },
-
-
-    /* -----------------------------------------------------
-       Validate Room Code
-    ----------------------------------------------------- */
-
-    isValidRoomCode(code) {
-
-        const pattern =
-            /^[A-Z0-9]{4,8}$/;
-
-
-        return pattern.test(
-            code
-        );
-
-    },
-
-
-    /* -----------------------------------------------------
-       Save Room
-    ----------------------------------------------------- */
-
-    save(room) {
+    async create() {
 
         try {
 
-            localStorage.setItem(
-                this.STORAGE_KEY,
-                JSON.stringify(room)
+            const response =
+                await fetch(
+                    this.API_BASE,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        }
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !response.ok ||
+                !data.success
+            ) {
+
+                throw new Error(
+                    data.error ||
+                    "Unable to create room."
+                );
+
+            }
+
+
+            const room =
+                data.room;
+
+
+            this.saveRoom(
+                room
             );
+
+
+            return room;
 
         } catch (error) {
 
             console.error(
-                "Unable to save room:",
+                "Create room error:",
                 error
             );
+
+
+            throw error;
 
         }
 
     },
 
 
-    /* -----------------------------------------------------
-       Get Saved Room
-    ----------------------------------------------------- */
+    // =====================================================
+    // Check Room
+    // =====================================================
 
-    getSavedRoom() {
+    async check(code) {
+
+        const roomCode =
+            String(code || "")
+                .trim()
+                .toUpperCase();
+
+
+        if (!roomCode) {
+
+            return null;
+
+        }
+
 
         try {
 
-            const data =
-                localStorage.getItem(
-                    this.STORAGE_KEY
+            const response =
+                await fetch(
+                    `${this.API_BASE}/${roomCode}`
                 );
 
 
-            if (!data) {
+            if (
+                !response.ok
+            ) {
 
                 return null;
 
             }
 
 
-            return JSON.parse(
-                data
-            );
+            const data =
+                await response.json();
+
+
+            if (
+                !data.success
+            ) {
+
+                return null;
+
+            }
+
+
+            return data.room;
 
         } catch (error) {
 
             console.error(
-                "Unable to read room:",
+                "Room check error:",
                 error
             );
+
 
             return null;
 
@@ -327,9 +140,151 @@ const Room = {
     },
 
 
-    /* -----------------------------------------------------
-       Clear Room
-    ----------------------------------------------------- */
+    // =====================================================
+    // Join Room
+    // =====================================================
+
+    async join(code) {
+
+        const roomCode =
+            String(code || "")
+                .trim()
+                .toUpperCase();
+
+
+        if (!roomCode) {
+
+            throw new Error(
+                "Please enter a room code."
+            );
+
+        }
+
+
+        const room =
+            await this.check(
+                roomCode
+            );
+
+
+        if (!room) {
+
+            throw new Error(
+                "Room not found or expired."
+            );
+
+        }
+
+
+        this.saveRoom(
+            room
+        );
+
+
+        return room;
+
+    },
+
+
+    // =====================================================
+    // Save Room
+    // =====================================================
+
+    saveRoom(room) {
+
+        if (!room) {
+
+            return;
+
+        }
+
+
+        localStorage.setItem(
+            this.STORAGE_KEY,
+            JSON.stringify(room)
+        );
+
+    },
+
+
+    // =====================================================
+    // Get Saved Room
+    // =====================================================
+
+    getSavedRoom() {
+
+        const saved =
+            localStorage.getItem(
+                this.STORAGE_KEY
+            );
+
+
+        if (!saved) {
+
+            return null;
+
+        }
+
+
+        try {
+
+            return JSON.parse(
+                saved
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Invalid saved room:",
+                error
+            );
+
+
+            this.clear();
+
+            return null;
+
+        }
+
+    },
+
+
+    // =====================================================
+    // Update Local Room
+    // =====================================================
+
+    update(data) {
+
+        const room =
+            this.getSavedRoom();
+
+
+        if (!room) {
+
+            return;
+
+        }
+
+
+        const updated = {
+
+            ...room,
+
+            ...data
+
+        };
+
+
+        this.saveRoom(
+            updated
+        );
+
+    },
+
+
+    // =====================================================
+    // Clear Room
+    // =====================================================
 
     clear() {
 
@@ -337,26 +292,12 @@ const Room = {
             this.STORAGE_KEY
         );
 
-
-        this.stopExpirationTimer();
-
     },
 
 
-    /* -----------------------------------------------------
-       Leave Room
-    ----------------------------------------------------- */
-
-    leave() {
-
-        this.clear();
-
-    },
-
-
-    /* -----------------------------------------------------
-       Check Expiration
-    ----------------------------------------------------- */
+    // =====================================================
+    // Check Expiration
+    // =====================================================
 
     isExpired(room) {
 
@@ -367,198 +308,97 @@ const Room = {
         }
 
 
+        if (!room.expiresAt) {
+
+            return false;
+
+        }
+
+
         return (
             Date.now() >=
-            room.expiresAt
+            Number(room.expiresAt)
         );
 
     },
 
 
-    /* -----------------------------------------------------
-       Start Expiration Timer
-    ----------------------------------------------------- */
+    // =====================================================
+    // Room URL
+    // =====================================================
+
+    getRoomURL(code) {
+
+        const roomCode =
+            String(code || "")
+                .trim()
+                .toUpperCase();
+
+
+        return (
+            `${window.location.origin}/room/${roomCode}`
+        );
+
+    },
+
+
+    // =====================================================
+    // Start Expiration Timer
+    // =====================================================
 
     startExpirationTimer(
-        expiresAt
+        expiresAt,
+        callback
     ) {
 
-        this.stopExpirationTimer();
+        if (!expiresAt) {
 
-
-        this.updateExpiration(
-            expiresAt
-        );
-
-
-        this.expirationTimer =
-            setInterval(
-                () => {
-
-                    this.updateExpiration(
-                        expiresAt
-                    );
-
-                },
-                1000
-            );
-
-    },
-
-
-    /* -----------------------------------------------------
-       Update Expiration
-    ----------------------------------------------------- */
-
-    updateExpiration(
-        expiresAt
-    ) {
-
-        const element =
-            document.getElementById(
-                "expirationTime"
-            );
-
-
-        if (!element) {
-
-            return;
+            return null;
 
         }
 
 
         const remaining =
-            expiresAt -
+            Number(expiresAt) -
             Date.now();
 
 
-        if (remaining <= 0) {
-
-            element.textContent =
-                "Expired";
-
-
-            this.handleExpiration();
-
-            return;
-
-        }
-
-
-        const totalSeconds =
-            Math.floor(
-                remaining / 1000
-            );
-
-
-        const hours =
-            Math.floor(
-                totalSeconds / 3600
-            );
-
-
-        const minutes =
-            Math.floor(
-                (totalSeconds % 3600) / 60
-            );
-
-
-        const seconds =
-            totalSeconds % 60;
-
-
-        element.textContent =
-            `${this.pad(hours)}:` +
-            `${this.pad(minutes)}:` +
-            `${this.pad(seconds)}`;
-
-    },
-
-
-    /* -----------------------------------------------------
-       Handle Expiration
-    ----------------------------------------------------- */
-
-    handleExpiration() {
-
-        this.stopExpirationTimer();
-
-
-        this.clear();
-
-
         if (
-            typeof UI !== "undefined"
+            remaining <= 0
         ) {
 
-            UI.showToast(
-                "This room has expired."
-            );
+            if (
+                typeof callback ===
+                "function"
+            ) {
+
+                callback();
+
+            }
+
+
+            return null;
 
         }
 
 
-        setTimeout(
+        return setTimeout(
             () => {
 
+                this.clear();
+
+
                 if (
-                    typeof UI !== "undefined"
+                    typeof callback ===
+                    "function"
                 ) {
 
-                    UI.elements.roomSection?.classList.add(
-                        "hidden"
-                    );
-
-                    UI.elements.landingSection?.classList.remove(
-                        "hidden"
-                    );
-
-                    UI.setConnectionStatus(
-                        "Ready"
-                    );
+                    callback();
 
                 }
 
             },
-            1200
-        );
-
-    },
-
-
-    /* -----------------------------------------------------
-       Stop Expiration Timer
-    ----------------------------------------------------- */
-
-    stopExpirationTimer() {
-
-        if (
-            this.expirationTimer
-        ) {
-
-            clearInterval(
-                this.expirationTimer
-            );
-
-            this.expirationTimer =
-                null;
-
-        }
-
-    },
-
-
-    /* -----------------------------------------------------
-       Padding Helper
-    ----------------------------------------------------- */
-
-    pad(number) {
-
-        return String(
-            number
-        ).padStart(
-            2,
-            "0"
+            remaining
         );
 
     }
