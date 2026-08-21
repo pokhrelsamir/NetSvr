@@ -17,6 +17,7 @@
   "author": "Samir Pokhrel",
   "license": "MIT",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "ws": "^8.21.3"
   }
 }
