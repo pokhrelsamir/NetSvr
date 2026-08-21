@@ -1,0 +1,22 @@
+{
+  "name": "netsvr",
+  "version": "1.0.0",
+  "description": "Simple real-time text and file sharing application.",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js"
+  },
+  "keywords": [
+    "file-sharing",
+    "text-sharing",
+    "real-time",
+    "websocket",
+    "netsvr"
+  ],
+  "author": "Samir Pokhrel",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
