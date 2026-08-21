@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="NetSvr is a fast and temporary text and file sharing platform for your devices."
+    >
+
+    <meta
+        name="keywords"
+        content="NetSvr, file sharing, text sharing, local sharing, temporary sharing"
+    >
+
+    <meta
+        name="author"
+        content="NetSvr"
+    >
+
+    <title>NetSvr — Share Between Your Devices</title>
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+</head>
+
+<body>
+
+    <!-- ================================
+         HEADER
+    ================================= -->
+
+    <header class="navbar">
+
+        <div class="container nav-content">
+
+            <a
+                href="#"
+                class="brand"
+                id="brandLink"
+            >
+                <span class="brand-icon">⚡</span>
+                <span>NetSvr</span>
+            </a>
+
+            <div class="nav-status">
+
+                <span class="status-dot"></span>
+
+                <span id="connectionStatus">
+                    Ready
+                </span>
+
+            </div>
+
+        </div>
+
+    </header>
+
+
+    <!-- ================================
+         MAIN
+    ================================= -->
+
+    <main>
+
+        <!-- ============================
+             LANDING PAGE
+        ============================= -->
+
+        <section
+            class="hero-section"
+            id="landingSection"
+        >
+
+            <div class="container hero-container">
+
+                <div class="hero-content">
+
+                    <div class="hero-badge">
+                        ⚡ Fast • Temporary • Private
+                    </div>
+
+                    <h1>
+                        Share anything.
+                        <span>Between your devices.</span>
+                    </h1>
+
+                    <p class="hero-description">
+                        NetSvr gives you a simple temporary space
+                        to share text and files between your devices.
+                        No complicated setup.
+                    </p>
+
+
+                    <!-- CREATE / JOIN -->
+
+                    <div class="room-actions">
+
+                        <button
+                            class="primary-button"
+                            id="createRoomBtn"
+                        >
+                            <span>＋</span>
+                            Create Room
+                        </button>
+
+                        <button
+                            class="secondary-button"
+                            id="showJoinBtn"
+                        >
+                            Join Room
+                        </button>
+
+                    </div>
+
+
+                    <!-- JOIN ROOM -->
+
+                    <div
+                        class="join-box hidden"
+                        id="joinBox"
+                    >
+
+                        <label for="roomCodeInput">
+                            Enter Room Code
+                        </label>
+
+                        <div class="join-input-group">
+
+                            <input
+                                type="text"
+                                id="roomCodeInput"
+                                placeholder="e.g. 8F4K2"
+                                maxlength="8"
+                                autocomplete="off"
+                            >
+
+                            <button
+                                class="primary-button"
+                                id="joinRoomBtn"
+                            >
+                                Join
+                            </button>
+
+                        </div>
+
+                        <p
+                            class="input-error hidden"
+                            id="roomError"
+                        >
+                            Please enter a valid room code.
+                        </p>
+
+                    </div>
+
+
+                    <!-- FEATURES -->
+
+                    <div class="hero-features">
+
+                        <div class="feature-item">
+                            <span>🔒</span>
+                            <div>
+                                <strong>Private</strong>
+                                <small>Temporary rooms</small>
+                            </div>
+                        </div>
+
+                        <div class="feature-item">
+                            <span>📁</span>
+                            <div>
+                                <strong>Files</strong>
+                                <small>Share instantly</small>
+                            </div>
+                        </div>
+
+                        <div class="feature-item">
+                            <span>⚡</span>
+                            <div>
+                                <strong>Fast</strong>
+                                <small>Built for quick sharing</small>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ============================
+             ROOM DASHBOARD
+        ============================= -->
+
+        <section
+            class="room-section hidden"
+            id="roomSection"
+        >
+
+            <div class="container room-container">
+
+
+                <!-- ROOM HEADER -->
+
+                <div class="room-header">
+
+                    <div>
+
+                        <div class="room-label">
+                            SHARING ROOM
+                        </div>
+
+                        <div class="room-title-row">
+
+                            <h2 id="roomCodeDisplay">
+                                -----
+                            </h2>
+
+                            <button
+                                class="icon-button"
+                                id="copyRoomBtn"
+                                title="Copy room link"
+                            >
+                                📋
+                            </button>
+
+                        </div>
+
+                        <p class="room-url">
+                            <span id="roomUrlDisplay">
+                                netsvr.vercel.app/room/-----
+                            </span>
+                        </p>
+
+                    </div>
+
+
+                    <div class="room-meta">
+
+                        <div class="connection-count">
+
+                            <span class="online-dot"></span>
+
+                            <span id="deviceCount">
+                                1 device connected
+                            </span>
+
+                        </div>
+
+                        <div class="expiration">
+
+                            ⏱ Expires in
+                            <strong id="expirationTime">
+                                24:00:00
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ========================
+                     SHARE GRID
+                ========================= -->
+
+                <div class="share-grid">
+
+
+                    <!-- ====================
+                         TEXT PANEL
+                    ===================== -->
+
+                    <div class="panel text-panel">
+
+                        <div class="panel-header">
+
+                            <div>
+
+                                <h3>
+                                    📝 Shared Text
+                                </h3>
+
+                                <p>
+                                    Anything you type here can
+                                    be accessed from connected devices.
+                                </p>
+
+                            </div>
+
+                            <span
+                                class="sync-badge"
+                                id="syncStatus"
+                            >
+                                ● Saved
+                            </span>
+
+                        </div>
+
+
+                        <div class="editor-wrapper">
+
+                            <textarea
+                                id="sharedText"
+                                placeholder="Paste or type something here..."
+                                spellcheck="false"
+                            ></textarea>
+
+                        </div>
+
+
+                        <div class="editor-footer">
+
+                            <div class="editor-stats">
+
+                                <span>
+                                    <strong id="wordCount">0</strong>
+                                    words
+                                </span>
+
+                                <span>
+                                    <strong id="charCount">0</strong>
+                                    characters
+                                </span>
+
+                            </div>
+
+                            <div class="editor-actions">
+
+                                <button
+                                    class="small-button"
+                                    id="copyTextBtn"
+                                >
+                                    📋 Copy
+                                </button>
+
+                                <button
+                                    class="small-button danger-button"
+                                    id="clearTextBtn"
+                                >
+                                    Clear
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ====================
+                         FILE PANEL
+                    ===================== -->
+
+                    <div class="panel file-panel">
+
+                        <div class="panel-header">
+
+                            <div>
+
+                                <h3>
+                                    📁 Shared Files
+                                </h3>
+
+                                <p>
+                                    Drop files here to share them.
+                                </p>
+
+                            </div>
+
+                            <span
+                                class="file-count"
+                                id="fileCount"
+                            >
+                                0 files
+                            </span>
+
+                        </div>
+
+
+                        <!-- DROP ZONE -->
+
+                        <div
+                            class="drop-zone"
+                            id="dropZone"
+                        >
+
+                            <div class="drop-icon">
+                                📤
+                            </div>
+
+                            <h4>
+                                Drop files here
+                            </h4>
+
+                            <p>
+                                or click to browse
+                            </p>
+
+                            <button
+                                class="browse-button"
+                                id="browseFilesBtn"
+                            >
+                                Browse Files
+                            </button>
+
+                            <input
+                                type="file"
+                                id="fileInput"
+                                multiple
+                                hidden
+                            >
+
+                        </div>
+
+
+                        <!-- FILE LIST -->
+
+                        <div
+                            class="file-list"
+                            id="fileList"
+                        >
+
+                            <div class="empty-files">
+                                No files shared yet.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ========================
+                     ROOM TOOLS
+                ========================= -->
+
+                <div class="room-tools">
+
+                    <button
+                        class="tool-button"
+                        id="showQrBtn"
+                    >
+                        📱
+                        <span>
+                            Show QR
+                        </span>
+                    </button>
+
+                    <button
+                        class="tool-button"
+                        id="shareRoomBtn"
+                    >
+                        🔗
+                        <span>
+                            Share Room
+                        </span>
+                    </button>
+
+                    <button
+                        class="tool-button danger-tool"
+                        id="leaveRoomBtn"
+                    >
+                        🚪
+                        <span>
+                            Leave Room
+                        </span>
+                    </button>
+
+                </div>
+
+
+                <!-- ========================
+                     SECURITY INFO
+                ========================= -->
+
+                <div class="security-notice">
+
+                    <span>🔒</span>
+
+                    <div>
+
+                        <strong>
+                            Temporary sharing
+                        </strong>
+
+                        <p>
+                            Your room is temporary and designed
+                            for quick device-to-device sharing.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ================================
+         QR MODAL
+    ================================= -->
+
+    <div
+        class="modal hidden"
+        id="qrModal"
+    >
+
+        <div class="modal-overlay"></div>
+
+        <div class="modal-content">
+
+            <button
+                class="modal-close"
+                id="closeQrBtn"
+            >
+                ×
+            </button>
+
+            <div class="modal-icon">
+                📱
+            </div>
+
+            <h3>
+                Scan to Join
+            </h3>
+
+            <p>
+                Scan this QR code with another device
+                to open this sharing room.
+            </p>
+
+            <div
+                class="qr-placeholder"
+                id="qrCode"
+            >
+                QR
+            </div>
+
+            <div class="qr-room-code">
+
+                Room
+
+                <strong id="qrRoomCode">
+                    -----
+                </strong>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================================
+         TOAST
+    ================================= -->
+
+    <div
+        class="toast hidden"
+        id="toast"
+    >
+        <span id="toastMessage">
+            Done
+        </span>
+    </div>
+
+
+    <!-- ================================
+         JAVASCRIPT
+    ================================= -->
+
+    <script src="js/ui.js"></script>
+    <script src="js/room.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/files.js"></script>
+    <script src="js/qr.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+
+</html>
