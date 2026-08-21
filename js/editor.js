@@ -1,20 +1,26 @@
 // =========================================================
 // NetSvr
-// Shared Text Editor
+// Real-Time Shared Text Editor
 // =========================================================
 
 const Editor = {
 
     elements: {},
 
+    socket: null,
+
+    connected: false,
+
     saveTimer: null,
 
     SAVE_DELAY: 400,
 
+    suppressInput: false,
 
-    /* -----------------------------------------------------
-       Initialize
-    ----------------------------------------------------- */
+
+    // =====================================================
+    // Initialize
+    // =====================================================
 
     init() {
 
@@ -43,16 +49,16 @@ const Editor = {
 
         this.bindEvents();
 
-        this.restoreText();
+        this.restoreLocalText();
 
         this.updateStats();
 
     },
 
 
-    /* -----------------------------------------------------
-       Event Listeners
-    ----------------------------------------------------- */
+    // =====================================================
+    // Events
+    // =====================================================
 
     bindEvents() {
 
@@ -62,11 +68,24 @@ const Editor = {
 
                 this.updateStats();
 
+                if (
+                    this.suppressInput
+                ) {
+
+                    return;
+
+                }
+
+
                 this.setStatus(
-                    "Saving..."
+                    "Typing..."
                 );
 
+
                 this.scheduleSave();
+
+
+                this.sendText();
 
             }
         );
@@ -74,154 +93,36 @@ const Editor = {
 
         this.elements.copyButton?.addEventListener(
             "click",
-            () => this.copyText()
+            () => {
+
+                this.copyText();
+
+            }
         );
 
 
         this.elements.clearButton?.addEventListener(
             "click",
-            () => this.clearText()
+            () => {
+
+                this.clearText();
+
+            }
         );
 
     },
 
 
-    /* -----------------------------------------------------
-       Update Statistics
-    ----------------------------------------------------- */
+    // =====================================================
+    // Connect WebSocket
+    // =====================================================
 
-    updateStats() {
+    connect(roomCode) {
 
-        const text =
-            this.getText();
+        if (!roomCode) {
 
-
-        const characters =
-            text.length;
-
-
-        const words =
-            this.countWords(text);
-
-
-        if (this.elements.charCount) {
-
-            this.elements.charCount.textContent =
-                characters;
-
-        }
-
-
-        if (this.elements.wordCount) {
-
-            this.elements.wordCount.textContent =
-                words;
-
-        }
-
-    },
-
-
-    /* -----------------------------------------------------
-       Count Words
-    ----------------------------------------------------- */
-
-    countWords(text) {
-
-        const trimmed =
-            text.trim();
-
-
-        if (!trimmed) {
-
-            return 0;
-
-        }
-
-
-        return trimmed
-            .split(/\s+/)
-            .length;
-
-    },
-
-
-    /* -----------------------------------------------------
-       Get Text
-    ----------------------------------------------------- */
-
-    getText() {
-
-        return (
-            this.elements.textArea?.value ||
-            ""
-        );
-
-    },
-
-
-    /* -----------------------------------------------------
-       Set Text
-    ----------------------------------------------------- */
-
-    setText(text) {
-
-        if (!this.elements.textArea) {
-
-            return;
-
-        }
-
-
-        this.elements.textArea.value =
-            text || "";
-
-
-        this.updateStats();
-
-    },
-
-
-    /* -----------------------------------------------------
-       Schedule Save
-    ----------------------------------------------------- */
-
-    scheduleSave() {
-
-        clearTimeout(
-            this.saveTimer
-        );
-
-
-        this.saveTimer =
-            setTimeout(
-                () => {
-
-                    this.saveText();
-
-                },
-                this.SAVE_DELAY
-            );
-
-    },
-
-
-    /* -----------------------------------------------------
-       Save Text
-    ----------------------------------------------------- */
-
-    saveText() {
-
-        const room =
-            typeof Room !== "undefined"
-                ? Room.getSavedRoom()
-                : null;
-
-
-        if (!room) {
-
-            this.setStatus(
-                "Not saved"
+            console.warn(
+                "Cannot connect without room code."
             );
 
             return;
@@ -229,31 +130,436 @@ const Editor = {
         }
 
 
-        room.text =
-            this.getText();
+        this.disconnect();
 
 
-        if (
-            typeof Room !== "undefined"
+        const protocol =
+            window.location.protocol === "https:"
+                ? "wss:"
+                : "ws:";
+
+
+        const host =
+            window.location.hostname ===
+                "localhost"
+                ? `${window.location.hostname}:3000`
+                : window.location.host;
+
+
+        const socketUrl =
+            `${protocol}//${host}/ws`;
+
+
+        console.log(
+            "Connecting to:",
+            socketUrl
+        );
+
+
+        this.socket =
+            new WebSocket(
+                socketUrl
+            );
+
+
+        // -------------------------------------------------
+        // Connected
+        // -------------------------------------------------
+
+        this.socket.addEventListener(
+            "open",
+            () => {
+
+                this.connected =
+                    true;
+
+
+                this.setStatus(
+                    "Connected"
+                );
+
+
+                this.socket.send(
+                    JSON.stringify({
+
+                        type:
+                            "ROOM_JOIN",
+
+                        roomCode:
+                            roomCode
+
+                    })
+                );
+
+
+                console.log(
+                    `Connected to room ${roomCode}`
+                );
+
+            }
+        );
+
+
+        // -------------------------------------------------
+        // Message
+        // -------------------------------------------------
+
+        this.socket.addEventListener(
+            "message",
+            (event) => {
+
+                this.handleMessage(
+                    event.data
+                );
+
+            }
+        );
+
+
+        // -------------------------------------------------
+        // Close
+        // -------------------------------------------------
+
+        this.socket.addEventListener(
+            "close",
+            () => {
+
+                this.connected =
+                    false;
+
+
+                this.setStatus(
+                    "Disconnected"
+                );
+
+
+                console.log(
+                    "WebSocket disconnected."
+                );
+
+            }
+        );
+
+
+        // -------------------------------------------------
+        // Error
+        // -------------------------------------------------
+
+        this.socket.addEventListener(
+            "error",
+            (error) => {
+
+                console.error(
+                    "WebSocket error:",
+                    error
+                );
+
+
+                this.connected =
+                    false;
+
+
+                this.setStatus(
+                    "Connection error"
+                );
+
+            }
+        );
+
+    },
+
+
+    // =====================================================
+    // Disconnect
+    // =====================================================
+
+    disconnect() {
+
+        if (!this.socket) {
+
+            return;
+
+        }
+
+
+        try {
+
+            if (
+                this.socket.readyState ===
+                WebSocket.OPEN
+            ) {
+
+                this.socket.send(
+                    JSON.stringify({
+
+                        type:
+                            "ROOM_LEAVE"
+
+                    })
+                );
+
+            }
+
+
+            this.socket.close();
+
+        } catch (error) {
+
+            console.error(
+                "Disconnect error:",
+                error
+            );
+
+        }
+
+
+        this.socket =
+            null;
+
+        this.connected =
+            false;
+
+    },
+
+
+    // =====================================================
+    // Handle Server Message
+    // =====================================================
+
+    handleMessage(rawMessage) {
+
+        let message;
+
+
+        try {
+
+            message =
+                JSON.parse(
+                    rawMessage
+                );
+
+        } catch (error) {
+
+            console.error(
+                "Invalid WebSocket message:",
+                error
+            );
+
+            return;
+
+        }
+
+
+        switch (
+            message.type
         ) {
 
-            Room.save(room);
+            case "ROOM_JOINED":
+
+                this.handleRoomJoined(
+                    message
+                );
+
+                break;
+
+
+            case "TEXT_UPDATE":
+
+                this.receiveText(
+                    message.text
+                );
+
+                break;
+
+
+            case "TEXT_SAVED":
+
+                this.setStatus(
+                    "Saved"
+                );
+
+                break;
+
+
+            case "USER_COUNT":
+
+                this.updateUserCount(
+                    message.count
+                );
+
+                break;
+
+
+            case "ROOM_LEFT":
+
+                this.setStatus(
+                    "Disconnected"
+                );
+
+                break;
+
+
+            case "ROOM_ERROR":
+
+                this.setStatus(
+                    "Room error"
+                );
+
+                if (
+                    typeof UI !== "undefined"
+                ) {
+
+                    UI.showToast(
+                        message.message
+                    );
+
+                }
+
+                break;
+
+
+            case "ERROR":
+
+                console.error(
+                    "Server error:",
+                    message.message
+                );
+
+                break;
+
+
+            case "PONG":
+
+                break;
+
+
+            default:
+
+                console.warn(
+                    "Unknown WebSocket message:",
+                    message
+                );
+
+        }
+
+    },
+
+
+    // =====================================================
+    // Room Joined
+    // =====================================================
+
+    handleRoomJoined(message) {
+
+        if (
+            message.room
+        ) {
+
+            this.suppressInput =
+                true;
+
+
+            this.setText(
+                message.room.text || ""
+            );
+
+
+            this.suppressInput =
+                false;
+
+
+            this.updateStats();
 
         }
 
 
         this.setStatus(
-            "Saved"
+            "Connected"
+        );
+
+
+        this.updateUserCount(
+            message.room?.clients || 1
         );
 
     },
 
 
-    /* -----------------------------------------------------
-       Restore Text
-    ----------------------------------------------------- */
+    // =====================================================
+    // Send Text
+    // =====================================================
 
-    restoreText() {
+    sendText() {
+
+        if (
+            !this.socket ||
+            this.socket.readyState !==
+                WebSocket.OPEN
+        ) {
+
+            this.saveLocalText();
+
+            return;
+
+        }
+
+
+        const text =
+            this.getText();
+
+
+        this.socket.send(
+            JSON.stringify({
+
+                type:
+                    "TEXT_UPDATE",
+
+                text
+
+            })
+        );
+
+
+        this.saveLocalText();
+
+    },
+
+
+    // =====================================================
+    // Receive Text
+    // =====================================================
+
+    receiveText(text) {
+
+        this.suppressInput =
+            true;
+
+
+        this.setText(
+            text
+        );
+
+
+        this.suppressInput =
+            false;
+
+
+        this.updateStats();
+
+        this.saveLocalText();
+
+        this.setStatus(
+            "Synced"
+        );
+
+    },
+
+
+    // =====================================================
+    // Restore Local Text
+    // =====================================================
+
+    restoreLocalText() {
 
         if (
             typeof Room === "undefined"
@@ -279,17 +585,154 @@ const Editor = {
             room.text || ""
         );
 
+    },
 
-        this.setStatus(
-            "Saved"
+
+    // =====================================================
+    // Save Local Backup
+    // =====================================================
+
+    saveLocalText() {
+
+        if (
+            typeof Room === "undefined"
+        ) {
+
+            return;
+
+        }
+
+
+        const room =
+            Room.getSavedRoom();
+
+
+        if (!room) {
+
+            return;
+
+        }
+
+
+        room.text =
+            this.getText();
+
+
+        Room.save(
+            room
         );
 
     },
 
 
-    /* -----------------------------------------------------
-       Copy Text
-    ----------------------------------------------------- */
+    // =====================================================
+    // Schedule Local Save
+    // =====================================================
+
+    scheduleSave() {
+
+        clearTimeout(
+            this.saveTimer
+        );
+
+
+        this.saveTimer =
+            setTimeout(
+                () => {
+
+                    this.saveLocalText();
+
+                },
+                this.SAVE_DELAY
+            );
+
+    },
+
+
+    // =====================================================
+    // Get Text
+    // =====================================================
+
+    getText() {
+
+        return (
+            this.elements.textArea?.value ||
+            ""
+        );
+
+    },
+
+
+    // =====================================================
+    // Set Text
+    // =====================================================
+
+    setText(text) {
+
+        if (
+            !this.elements.textArea
+        ) {
+
+            return;
+
+        }
+
+
+        this.elements.textArea.value =
+            text || "";
+
+    },
+
+
+    // =====================================================
+    // Statistics
+    // =====================================================
+
+    updateStats() {
+
+        const text =
+            this.getText();
+
+
+        const characters =
+            text.length;
+
+
+        const trimmed =
+            text.trim();
+
+
+        const words =
+            trimmed
+                ? trimmed.split(/\s+/).length
+                : 0;
+
+
+        if (
+            this.elements.charCount
+        ) {
+
+            this.elements.charCount.textContent =
+                characters;
+
+        }
+
+
+        if (
+            this.elements.wordCount
+        ) {
+
+            this.elements.wordCount.textContent =
+                words;
+
+        }
+
+    },
+
+
+    // =====================================================
+    // Copy
+    // =====================================================
 
     async copyText() {
 
@@ -338,33 +781,20 @@ const Editor = {
                 error
             );
 
-
-            if (
-                typeof UI !== "undefined"
-            ) {
-
-                UI.showToast(
-                    "Unable to copy text."
-                );
-
-            }
-
         }
 
     },
 
 
-    /* -----------------------------------------------------
-       Clear Text
-    ----------------------------------------------------- */
+    // =====================================================
+    // Clear
+    // =====================================================
 
     clearText() {
 
-        const text =
-            this.getText();
-
-
-        if (!text) {
+        if (
+            !this.getText()
+        ) {
 
             return;
 
@@ -389,7 +819,11 @@ const Editor = {
         );
 
 
-        this.saveText();
+        this.updateStats();
+
+        this.sendText();
+
+        this.saveLocalText();
 
 
         if (
@@ -405,9 +839,38 @@ const Editor = {
     },
 
 
-    /* -----------------------------------------------------
-       Editor Status
-    ----------------------------------------------------- */
+    // =====================================================
+    // User Count
+    // =====================================================
+
+    updateUserCount(count) {
+
+        const element =
+            document.getElementById(
+                "userCount"
+            );
+
+
+        if (!element) {
+
+            return;
+
+        }
+
+
+        element.textContent =
+            `${count} ${
+                count === 1
+                    ? "device"
+                    : "devices"
+            } connected`;
+
+    },
+
+
+    // =====================================================
+    // Status
+    // =====================================================
 
     setStatus(status) {
 
@@ -428,9 +891,9 @@ const Editor = {
 };
 
 
-/* =========================================================
-   Initialize
-========================================================= */
+// =========================================================
+// Initialize
+// =========================================================
 
 document.addEventListener(
     "DOMContentLoaded",
