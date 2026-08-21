@@ -2,6 +2,12 @@
 // NetSvr
 // API Server
 // =========================================================
+const http = require("http");
+
+const {
+    createWebSocketServer
+} = require("./websocket");
+
 
 const express = require("express");
 
@@ -399,7 +405,19 @@ if (
     require.main === module
 ) {
 
-    app.listen(
+    const server =
+    http.createServer(app);
+
+createWebSocketServer(
+    server
+);
+
+
+if (
+    require.main === module
+) {
+
+    server.listen(
         PORT,
         () => {
 
@@ -407,8 +425,17 @@ if (
                 `NetSvr server running on port ${PORT}`
             );
 
+            console.log(
+                `WebSocket endpoint: ws://localhost:${PORT}/ws`
+            );
+
         }
     );
+
+}
+
+
+module.exports = server;
 
 }
 
