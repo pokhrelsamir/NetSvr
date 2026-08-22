@@ -17,6 +17,22 @@ const Editor = {
 
     suppressInput: false,
 
+    pollTimer: null,
+
+    pollingFor: null,
+
+    POLL_INTERVAL: 2000,
+
+    ACTIVE_TYPING_WINDOW: 1500,
+
+    roomCode: null,
+
+    lastSentText: null,
+
+    lastInputAt: 0,
+
+    connectionId: 0,
+
 
     // =====================================================
     // Initialize
@@ -77,6 +93,10 @@ const Editor = {
                 }
 
 
+                this.lastInputAt =
+                    Date.now();
+
+
                 this.setStatus(
                     "Typing..."
                 );
@@ -133,6 +153,20 @@ const Editor = {
         this.disconnect();
 
 
+        this.connectionId =
+            this.connectionId + 1;
+
+        const connectionId =
+            this.connectionId;
+
+
+        this.roomCode =
+            roomCode;
+
+        this.lastSentText =
+            null;
+
+
         const protocol =
             window.location.protocol === "https:"
                 ? "wss:"
@@ -170,8 +204,21 @@ const Editor = {
             "open",
             () => {
 
+                if (
+                    connectionId !==
+                    this.connectionId
+                ) {
+
+                    return;
+
+                }
+
+
                 this.connected =
                     true;
+
+
+                this.stopPolling();
 
 
                 this.setStatus(
@@ -208,6 +255,16 @@ const Editor = {
             "message",
             (event) => {
 
+                if (
+                    connectionId !==
+                    this.connectionId
+                ) {
+
+                    return;
+
+                }
+
+
                 this.handleMessage(
                     event.data
                 );
@@ -224,12 +281,27 @@ const Editor = {
             "close",
             () => {
 
+                if (
+                    connectionId !==
+                    this.connectionId
+                ) {
+
+                    return;
+
+                }
+
+
                 this.connected =
                     false;
 
 
                 this.setStatus(
                     "Disconnected"
+                );
+
+
+                this.startPolling(
+                    roomCode
                 );
 
 
@@ -248,6 +320,16 @@ const Editor = {
         this.socket.addEventListener(
             "error",
             (error) => {
+
+                if (
+                    connectionId !==
+                    this.connectionId
+                ) {
+
+                    return;
+
+                }
+
 
                 console.error(
                     "WebSocket error:",
@@ -274,6 +356,20 @@ const Editor = {
     // =====================================================
 
     disconnect() {
+
+        this.connectionId =
+            this.connectionId + 1;
+
+
+        this.stopPolling();
+
+
+        this.roomCode =
+            null;
+
+        this.lastSentText =
+            null;
+
 
         if (!this.socket) {
 
@@ -491,21 +587,29 @@ const Editor = {
 
     sendText() {
 
+        const text =
+            this.getText();
+
+
+        this.lastSentText =
+            text;
+
+
         if (
             !this.socket ||
             this.socket.readyState !==
                 WebSocket.OPEN
         ) {
 
+            this.sendTextRest(
+                text
+            );
+
             this.saveLocalText();
 
             return;
 
         }
-
-
-        const text =
-            this.getText();
 
 
         this.socket.send(
@@ -521,6 +625,221 @@ const Editor = {
 
 
         this.saveLocalText();
+
+    },
+
+
+    // =====================================================
+    // Send Text via REST (Polling Fallback)
+    // =====================================================
+
+    async sendTextRest(text) {
+
+        if (!this.roomCode) {
+
+            return;
+
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+
+                    `/api/rooms/${encodeURIComponent(this.roomCode)}`,
+
+                    {
+                        method:
+                            "PATCH",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify({
+                                text
+                            })
+                    }
+
+                );
+
+
+            if (response.ok) {
+
+                this.setStatus(
+                    "Saved"
+                );
+
+            } else if (
+                response.status === 404
+            ) {
+
+                this.setStatus(
+                    "Room expired"
+                );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "REST text sync failed:",
+                error
+            );
+
+        }
+
+    },
+
+
+    // =====================================================
+    // Polling Fallback
+    // =====================================================
+
+    startPolling(roomCode) {
+
+        if (!roomCode || !this.roomCode) {
+
+            return;
+
+        }
+
+
+        if (
+            this.pollTimer &&
+            this.pollingFor === roomCode
+        ) {
+
+            return;
+
+        }
+
+
+        this.stopPolling();
+
+
+        this.pollingFor =
+            roomCode;
+
+
+        this.pollTimer =
+            setInterval(
+                () => {
+
+                    this.pollRoom();
+
+                },
+                this.POLL_INTERVAL
+            );
+
+
+        console.log(
+            `WebSocket unavailable — polling /api/rooms/${roomCode}`
+        );
+
+    },
+
+
+    stopPolling() {
+
+        if (
+            this.pollTimer
+        ) {
+
+            clearInterval(
+                this.pollTimer
+            );
+
+            this.pollTimer =
+                null;
+
+        }
+
+
+        this.pollingFor =
+            null;
+
+    },
+
+
+    async pollRoom() {
+
+        if (
+            !this.roomCode ||
+            !this.pollingFor
+        ) {
+
+            return;
+
+        }
+
+
+        /*
+         * Don't clobber the textarea while
+         * the local user is actively typing.
+         */
+
+        if (
+            Date.now() - this.lastInputAt <
+                this.ACTIVE_TYPING_WINDOW
+        ) {
+
+            return;
+
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/rooms/${encodeURIComponent(this.roomCode)}`
+                );
+
+
+            if (!response.ok) {
+
+                return;
+
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !data.success ||
+                !data.room
+            ) {
+
+                return;
+
+            }
+
+
+            const remoteText =
+                data.room.text || "";
+
+
+            if (
+                remoteText !== this.getText()
+            ) {
+
+                this.receiveText(
+                    remoteText
+                );
+
+            }
+
+        } catch (error) {
+
+            /* Transient network errors are ignored. */
+
+        }
 
     },
 

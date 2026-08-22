@@ -26,6 +26,44 @@
 
     <title>NetSvr — Share Between Your Devices</title>
 
+    <script>
+        (function () {
+
+            try {
+
+                var stored =
+                    localStorage.getItem("netsvr_theme");
+
+                if (
+                    stored !== "light" &&
+                    stored !== "dark"
+                ) {
+
+                    stored = window.matchMedia(
+                        "(prefers-color-scheme: light)"
+                    ).matches
+                        ? "light"
+                        : "dark";
+
+                }
+
+                document.documentElement.setAttribute(
+                    "data-theme",
+                    stored
+                );
+
+            } catch (error) {
+
+                document.documentElement.setAttribute(
+                    "data-theme",
+                    "dark"
+                );
+
+            }
+
+        })();
+    </script>
+
     <link
         rel="stylesheet"
         href="css/style.css"
@@ -58,6 +96,15 @@
                 <span id="connectionStatus">
                     Ready
                 </span>
+
+                <button
+                    class="icon-button theme-toggle"
+                    id="themeToggleBtn"
+                    title="Toggle theme"
+                    aria-label="Toggle color theme"
+                >
+                    🌙
+                </button>
 
             </div>
 
@@ -594,6 +641,7 @@
          JAVASCRIPT
     ================================= -->
 
+    <script src="js/theme.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/room.js"></script>
     <script src="js/editor.js"></script>

@@ -104,3 +104,5 @@ server/uploads/
 *.bak
 *.backup
 *~
+.vercel
+.env*
