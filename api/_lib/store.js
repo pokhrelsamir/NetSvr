@@ -22,6 +22,16 @@ const CODE_CHARACTERS =
     "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /*
+ * Server-side cap for a single shared file.
+ * Base64 inflates payloads by ~33%, so this
+ * keeps requests under Vercel's body limit.
+ */
+
+const MAX_FILE_SIZE = 3_000_000;
+
+const MAX_FILE_NAME = 200;
+
+/*
  * Warm-instance memory cache.
  */
 
@@ -90,6 +100,49 @@ async function redisCommand(...parts) {
 function redisKey(code) {
 
     return `netsvr:room:${String(code).toUpperCase()}`;
+
+}
+
+
+/*
+ * POST-body command form. Unlike the URL-path
+ * form, this supports arbitrarily large values
+ * (needed when a room holds base64 file data).
+ */
+
+async function redisWrite(...command) {
+
+    const response =
+        await fetch(
+            process.env.UPSTASH_REDIS_REST_URL,
+            {
+                method: "POST",
+
+                headers: {
+                    Authorization:
+                        `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`
+                },
+
+                body:
+                    JSON.stringify(command)
+            }
+        );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            `Upstash ${command[0]} failed: ${response.status}`
+        );
+
+    }
+
+
+    const data =
+        await response.json();
+
+
+    return data.result;
 
 }
 
