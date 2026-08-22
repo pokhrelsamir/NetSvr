@@ -91,11 +91,45 @@ const UI = {
 
         this.elements.createRoomBtn?.addEventListener(
             "click",
-            () => {
+            async () => {
 
-                if (typeof Room !== "undefined") {
+                if (typeof Room === "undefined") {
 
-                    Room.create();
+                    return;
+
+                }
+
+                try {
+
+                    this.setConnectionStatus(
+                        "Creating room..."
+                    );
+
+                    const room =
+                        await Room.create();
+
+                    this.enterRoom(
+                        room
+                    );
+
+                    this.showToast(
+                        `Room ${room.code} created!`
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "Create room failed:",
+                        error
+                    );
+
+                    this.setConnectionStatus(
+                        "Ready"
+                    );
+
+                    this.showToast(
+                        "Unable to create room."
+                    );
 
                 }
 
@@ -219,14 +253,51 @@ const UI = {
         }
 
 
-        this.hideRoomError();
+        if (typeof Room === "undefined") {
 
-
-        if (typeof Room !== "undefined") {
-
-            Room.join(code);
+            return;
 
         }
+
+
+        this.hideRoomError();
+
+        this.setConnectionStatus(
+            "Joining room..."
+        );
+
+
+        Room.join(code)
+
+            .then((room) => {
+
+                this.enterRoom(
+                    room
+                );
+
+                this.showToast(
+                    `Joined room ${room.code}.`
+                );
+
+            })
+
+            .catch((error) => {
+
+                console.error(
+                    "Join room failed:",
+                    error
+                );
+
+                this.setConnectionStatus(
+                    "Ready"
+                );
+
+                this.showRoomError(
+                    error.message ||
+                        "Unable to join room."
+                );
+
+            });
 
     },
 
@@ -255,6 +326,92 @@ const UI = {
 
         this.elements.roomError?.classList.add(
             "hidden"
+        );
+
+    },
+
+
+    /* -----------------------------------------------------
+       Enter Room
+       ----------------------------------------------------- */
+
+    enterRoom(room) {
+
+        if (!room || !room.code) {
+
+            return;
+
+        }
+
+
+        this.hideRoomError();
+
+        this.showRoom(
+            room.code
+        );
+
+
+        if (
+            typeof Room !== "undefined"
+        ) {
+
+            Room.startExpirationTimer(
+                room.expiresAt,
+                () => this.handleRoomExpired()
+            );
+
+        }
+
+
+        if (
+            typeof Editor !== "undefined" &&
+            typeof Editor.connect === "function"
+        ) {
+
+            Editor.connect(
+                room.code
+            );
+
+        }
+
+    },
+
+
+    /* -----------------------------------------------------
+       Handle Room Expired
+       ----------------------------------------------------- */
+
+    handleRoomExpired() {
+
+        if (
+            typeof Editor !== "undefined" &&
+            typeof Editor.disconnect === "function"
+        ) {
+
+            Editor.disconnect();
+
+        }
+
+
+        this.elements.roomSection?.classList.add(
+            "hidden"
+        );
+
+        this.elements.landingSection?.classList.remove(
+            "hidden"
+        );
+
+        this.setConnectionStatus(
+            "Ready"
+        );
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+
+        this.showToast(
+            "This room has expired."
         );
 
     },
@@ -344,11 +501,20 @@ const UI = {
 
 
         if (
-            typeof Room !== "undefined" &&
-            typeof Room.leave === "function"
+            typeof Editor !== "undefined" &&
+            typeof Editor.disconnect === "function"
         ) {
 
-            Room.leave();
+            Editor.disconnect();
+
+        }
+
+
+        if (
+            typeof Room !== "undefined"
+        ) {
+
+            Room.clear();
 
         }
 
@@ -388,13 +554,65 @@ const UI = {
 
 
     /* -----------------------------------------------------
+       Get Active Room URL
+       ----------------------------------------------------- */
+
+    getActiveRoomURL() {
+
+        const roomCode =
+            document.getElementById(
+                "roomCodeDisplay"
+            )?.textContent.trim();
+
+
+        if (
+            !roomCode ||
+            roomCode === "-----"
+        ) {
+
+            return null;
+
+        }
+
+
+        if (
+            typeof Room !== "undefined" &&
+            typeof Room.getRoomURL === "function"
+        ) {
+
+            return Room.getRoomURL(
+                roomCode
+            );
+
+        }
+
+
+        return (
+            `${window.location.origin}/room/${roomCode}`
+        );
+
+    },
+
+
+    /* -----------------------------------------------------
        Copy Room Link
-    ----------------------------------------------------- */
+       ----------------------------------------------------- */
 
     async copyRoomLink() {
 
         const url =
-            window.location.href;
+            this.getActiveRoomURL();
+
+
+        if (!url) {
+
+            this.showToast(
+                "Create or join a room first."
+            );
+
+            return;
+
+        }
 
 
         try {
@@ -431,7 +649,18 @@ const UI = {
 
 
         const url =
-            window.location.href;
+            this.getActiveRoomURL();
+
+
+        if (!url) {
+
+            this.showToast(
+                "Create or join a room first."
+            );
+
+            return;
+
+        }
 
 
         if (

@@ -348,8 +348,11 @@ const Room = {
 
     startExpirationTimer(
         expiresAt,
-        callback
+        onExpire
     ) {
+
+        this.stopTimers();
+
 
         if (!expiresAt) {
 
@@ -358,48 +361,185 @@ const Room = {
         }
 
 
-        const remaining =
+        const expiresIn =
             Number(expiresAt) -
             Date.now();
 
 
-        if (
-            remaining <= 0
-        ) {
+        this.updateCountdown(
+            expiresAt
+        );
 
-            if (
-                typeof callback ===
-                "function"
-            ) {
 
-                callback();
+        if (expiresIn <= 0) {
 
-            }
-
+            this.expire(
+                onExpire
+            );
 
             return null;
 
         }
 
 
-        return setTimeout(
-            () => {
+        this.countdownTimer =
+            setInterval(
+                () => {
 
-                this.clear();
+                    this.updateCountdown(
+                        expiresAt
+                    );
+
+                },
+                1000
+            );
 
 
-                if (
-                    typeof callback ===
-                    "function"
-                ) {
+        this.expiryTimer =
+            setTimeout(
+                () => {
 
-                    callback();
+                    this.expire(
+                        onExpire
+                    );
 
-                }
+                },
+                expiresIn
+            );
 
-            },
-            remaining
+    },
+
+
+    // =====================================================
+    // Update Countdown Display
+    // =====================================================
+
+    updateCountdown(expiresAt) {
+
+        const element =
+            document.getElementById(
+                "expirationTime"
+            );
+
+
+        if (!element) {
+
+            return;
+
+        }
+
+
+        const remaining = Math.max(
+            Number(expiresAt) -
+                Date.now(),
+            0
         );
+
+
+        element.textContent =
+            this.formatRemaining(
+                remaining
+            );
+
+    },
+
+
+    // =====================================================
+    // Format Remaining Time
+    // =====================================================
+
+    formatRemaining(remainingMs) {
+
+        const totalSeconds =
+            Math.floor(
+                remainingMs / 1000
+            );
+
+
+        const hours = Math.floor(
+            totalSeconds / 3600
+        );
+
+
+        const minutes = Math.floor(
+            (totalSeconds % 3600) /
+                60
+        );
+
+
+        const seconds =
+            totalSeconds % 60;
+
+
+        const pad = (value) =>
+            String(value).padStart(
+                2,
+                "0"
+            );
+
+
+        return (
+            `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+        );
+
+    },
+
+
+    // =====================================================
+    // Expire Room Locally
+    // =====================================================
+
+    expire(onExpire) {
+
+        this.stopTimers();
+
+        this.clear();
+
+
+        if (
+            typeof onExpire ===
+            "function"
+        ) {
+
+            onExpire();
+
+        }
+
+    },
+
+
+    // =====================================================
+    // Stop Timers
+    // =====================================================
+
+    stopTimers() {
+
+        if (
+            this.countdownTimer
+        ) {
+
+            clearInterval(
+                this.countdownTimer
+            );
+
+            this.countdownTimer =
+                null;
+
+        }
+
+
+        if (
+            this.expiryTimer
+        ) {
+
+            clearTimeout(
+                this.expiryTimer
+            );
+
+            this.expiryTimer =
+                null;
+
+        }
 
     }
 

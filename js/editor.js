@@ -618,7 +618,7 @@ const Editor = {
             this.getText();
 
 
-        Room.save(
+        Room.saveRoom(
             room
         );
 
@@ -847,7 +847,7 @@ const Editor = {
 
         const element =
             document.getElementById(
-                "userCount"
+                "deviceCount"
             );
 
 

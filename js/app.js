@@ -93,8 +93,33 @@ const App = {
 
 
             Room.startExpirationTimer(
-                room.expiresAt
+                room.expiresAt,
+                () => {
+
+                    if (
+                        typeof UI !== "undefined" &&
+                        typeof UI.handleRoomExpired ===
+                            "function"
+                    ) {
+
+                        UI.handleRoomExpired();
+
+                    }
+
+                }
             );
+
+
+            if (
+                typeof Editor !== "undefined" &&
+                typeof Editor.connect === "function"
+            ) {
+
+                Editor.connect(
+                    room.code
+                );
+
+            }
 
         }
 
